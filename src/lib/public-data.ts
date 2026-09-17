@@ -198,7 +198,7 @@ export function resolveOfficeForZone(
     };
   }
 
-  const fallback = OFFICES.find((office) => office.id === zone);
+  const fallback = OFFICES[0];
   return fallback
     ? {
         name: fallback.shortName,
