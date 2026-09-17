@@ -1,0 +1,97 @@
+# Veer Real Estate — Project Rules
+
+## Stack
+- Next.js 16 (App Router, Turbopack default), React 19.2
+- Drizzle ORM + postgres.js driver → Supabase Postgres
+- Supabase Storage for all media (images, floor plans)
+- TanStack Query v5 for client-side data fetching
+- Tailwind CSS v4 (CSS-based config via @theme inline in globals.css)
+- Zod for all validation
+- lucide-react for icons (NO Font Awesome, NO react-icons)
+- sonner for toast notifications
+- Plus Jakarta Sans (headings) + Inter (body) via next/font/google
+
+## Next.js 16 Specific (CRITICAL — do not use Next.js 15 patterns)
+1. proxy.ts NOT middleware.ts. Export function named `proxy`, not `middleware`.
+2. proxy.ts is THIN — routing only. NO auth verification, NO DB calls.
+3. Auth guard lives in admin layout.tsx as Server Component calling verifySession().
+4. All params and searchParams are async:
+   `const { slug } = await props.params`
+5. next/image: Do NOT use onLoadingComplete, lazyBoundary, lazyRoot props.
+6. Node.js 20+ minimum.
+7. Turbopack is default — do NOT add webpack config.
+
+## Architecture Rules
+1. Public pages = Server Components. No 'use client' on page.tsx files.
+2. Interactive UI = small client component islands imported into server pages.
+3. Admin pages = client components, all data via TanStack Query hooks.
+4. Every API call from a component goes through a hook in hooks/queries/ or hooks/mutations/.
+5. API routes validate input with Zod before any DB operation.
+6. API routes return { data } on success, { error: string } on failure.
+
+## Color System — VARIABLES ONLY
+All colors use CSS custom properties defined in globals.css :root.
+Never hardcode hex values in components. Always use Tailwind classes mapped to variables:
+- bg-primary, text-primary (navy #1A1A2E)
+- bg-accent, text-accent, bg-accent-light, bg-accent-dark (warm copper #D48458)
+- bg-accent-subtle (copper at 10% opacity for icon backgrounds, light fills, and badges)
+- bg-surface (warm off-white), bg-card (white)
+- text-text, text-text-muted, text-text-light, text-text-inverse
+- border-border, border-border-light
+- bg-success/warning/error/info and their -light variants
+- shadow-card, shadow-card-hover, shadow-elevated
+- bg-whatsapp (official WhatsApp green — only allowed brand hex exception)
+NEVER use "gold" in class names or color references. The accent is always "accent".
+To change the entire theme, edit :root in globals.css. Nothing else changes.
+
+## Typography
+- Headings: font-heading (Plus Jakarta Sans), font-bold/semibold, tracking-tight
+- Body: font-body (Inter), font-normal, leading-relaxed
+- Max body text width: max-w-prose
+- No ALL CAPS on headings. Only on xs badges with tracking-wider.
+
+## Component Patterns
+- Cards: rounded-2xl, shadow-card, hover:shadow-card-hover. No borders.
+- Buttons primary: rounded-xl bg-accent text-white hover:bg-accent-light (white text on copper — copper is dark enough for contrast)
+- Buttons secondary: rounded-xl border border-primary text-primary hover:bg-primary hover:text-text-inverse
+- Inputs: rounded-lg border-border focus:ring-accent
+- Section padding: py-16 md:py-24
+- Content max-width: max-w-7xl mx-auto px-4
+- Stats: flat horizontal numbers, text-accent, no circles/boxes
+- Icon wrappers: bg-accent-subtle text-accent rounded-xl p-2
+
+## Database
+- Schema changes ONLY through Drizzle migrations.
+- drizzle-kit generate → review SQL → drizzle-kit migrate. No push in prod.
+- Use pgEnum for categorical fields. JSONB for arrays.
+- All tables have created_at/updated_at with timezone.
+
+## SEO
+- Every public route exports generateMetadata() with unique title + description.
+- JSON-LD structured data on every public page (via `JsonLdScript` in `src/lib/seo.tsx`).
+- Canonical site URL from `getSiteUrl()` / `NEXT_PUBLIC_SITE_URL` in `src/lib/site.ts`.
+- Public contact/office/social content lives in `src/lib/site.ts` — do not hardcode across pages.
+- Semantic HTML: article, section, nav, address, time.
+- /llms.txt and /llms-full.txt API routes for AI discoverability.
+- Dynamic sitemap.ts and robots.ts.
+
+## TanStack Query
+- Centralized key factory in hooks/keys.ts.
+- Mutations invalidate relevant keys via onSuccess.
+- staleTime: 5min (public), 0 (admin).
+- No raw fetch() in components.
+
+## Media / Supabase Storage
+- Uploads → /api/media/upload → Supabase Storage via `getSupabaseAdmin()` / `uploadToStorage()` in `src/lib/supabase.ts`. Never direct client upload.
+- Env: `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Secret key `sb_secret_...` or legacy service_role JWT), `SUPABASE_BUCKET_NAME`.
+- Do NOT use Publishable / anon key for uploads. Server uploads only with the Secret key.
+- Storage bucket must be **public** so URLs work as `/storage/v1/object/public/{bucket}/{path}`.
+- Public URL helper: `getPublicStorageUrl(path)` — uses `SUPABASE_BUCKET_NAME` from env.
+- Keep storage paths organized, e.g. `projects/{slug}/cover.{ext}`, `projects/{slug}/gallery/{n}.{ext}`, `projects/{slug}/floor-plans/{n}.{ext}`, `blog/{slug}/cover.{ext}`, `blog/{slug}/og.{ext}`.
+- Videos = YouTube embed URLs. No video file uploads.
+- Images via Next.js <Image> with sizes attribute. Allow `**.supabase.co` in next.config remotePatterns.
+
+## Code Style
+- TypeScript strict. No `any` except migration scripts.
+- Named exports for components. Default exports only for page.tsx.
+- No console.log in production code.
